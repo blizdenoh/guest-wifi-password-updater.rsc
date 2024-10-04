@@ -1,3 +1,36 @@
 /node_modules/
 /lib/
 .bsb.lock
+# MikroTik Script: Guest Wi-Fi Password Updater
+# Description: This script automatically generates a unique, random password for guest Wi-Fi 
+#              at regular intervals (e.g., daily) and applies it to the specified SSID.
+# Version: 1.0
+# Author: Denis Mbote
+# GitHub: https://github.com/blizdenoh/guest-wifi-password-updater.rsc/edit/main/.gitignore
+
+# Variables
+:local ssid "GuestWiFi"                # Name of the guest Wi-Fi SSID (wireless interface)
+:local passwordLength 10               # Length of the new password
+:local validDuration "24h"             # Password expiry time (e.g., 24 hours or any other interval)
+:local currentTime [/system clock get time]
+:local currentDate [/system clock get date]
+
+# Function: Generate random password
+:local newPassword ""
+:for i from=1 to=$passwordLength do={
+    :local charSet "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    :local randIndex ([:rand 0 ([:len $charSet] - 1)])
+    :set newPassword ($newPassword . [:pick $charSet $randIndex])
+}
+
+# Apply the new password to the guest Wi-Fi SSID security profile
+/interface wireless security-profiles set [find name=$ssid] wpa2-pre-shared-key=$newPassword
+
+# Log the password change for auditing
+:log info ("New Guest Wi-Fi password generated: " . $newPassword . " at " . $currentTime . " on " . $currentDate)
+
+# (Optional) Send the new password via email if email configuration is available
+# /tool e-mail send to="youremail@example.com" subject="New Guest Wi-Fi Password" body=("New password for " . $ssid . ": " . $newPassword)
+
+# Schedule the script to run again after the defined valid duration
+/system scheduler add name="UpdateGuestWiFiPassword" interval=$validDuration on-event=":local ssid \"$ssid\"; /system script run guest-wifi-password-updater;"
